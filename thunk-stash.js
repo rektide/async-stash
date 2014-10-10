@@ -35,4 +35,9 @@ var stash= module.exports= (function stash(opts){
 		awaits[key]= null
 		resolves[key]= val
 	}
+
+	return {
+		get: get,
+		set: set
+	}
 })
