@@ -9,5 +9,5 @@ module.exports= (function keyHash(args, n){
 			return i.toString()
 		})
 		.join('')
-		.end()
+		.value()
 })
