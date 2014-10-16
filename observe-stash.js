@@ -4,7 +4,8 @@ var argsHash= require('./args-hash')
 
 /// Create a Map one can .get from before the key exists.
 var stash= module.exports= (function stash(opts){
-	var slowGet= false
+	var slowGet= false,
+	  liveSet= false
 
 	var awaits= {},
 	  resolves= {}
@@ -47,8 +48,10 @@ var stash= module.exports= (function stash(opts){
 			setTimeout(function(){
 				for(var i= 0; i< waits.length; ++i){
 					var wait= waits[i]
-					wait(val)
-					// wait(await[key]) // live version!
+					if(wait.late || liveSet)
+						wait(await[key]) // resolve late
+					else
+						wait(val)
 				}
 			}, 0)
 			awaits[key]= null
@@ -56,6 +59,14 @@ var stash= module.exports= (function stash(opts){
 		// set
 		resolves[key]= val
 	}
+	Object.defineProperty(set, 'live', {
+		get: function(){
+			return liveSet
+		},
+		set: function(value){
+			liveSet= !!value
+		}
+	})
 
 	/// iterate through keys
 	function *keys(){
