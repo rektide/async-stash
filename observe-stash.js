@@ -5,22 +5,22 @@ var argsHash= require('./args-hash')
 /// Create a Map one can .get from before the key exists.
 var stash= module.exports= (function stash(opts){
 	var slowGet= false,
-	  liveSet= false
+	  lateSet= false
 
 	var awaits= {},
 	  resolves= {}
 
 	/// return a thunk of a get which will immediately happen or when the key is fulfilled
-	function get(key){
+	function get(){
 		var key= argsHash(arguments, 0)
 		return function(done){
 			var resolved= resolves[key]
-			if(resolved)
+			if(resolved){
 				if(slowGet)
 					setTimeout(function(){done(undefined, resolved)})
 				else
 					done(undefined, resolved)
-			else{
+			}else{
 				var wait= awaits[key]
 				if(wait)
 					wait.push(done)
@@ -41,17 +41,18 @@ var stash= module.exports= (function stash(opts){
 	/// sets a value by indicies
 	function set(){
 		var key= argsHash(arguments, 1),
-		  waits= awaits[key]
+		  val= arguments[arguments.length-1],
+		  waits= awaits[key],
+		  late= lateSet
 		if(waits && waits.length){
 			// remove all waits, and in the future trigger them
-			var val= arguments[arguments.length-1]
 			setTimeout(function(){
 				for(var i= 0; i< waits.length; ++i){
 					var wait= waits[i]
-					if(wait.late || liveSet)
-						wait(await[key]) // resolve late
-					else
-						wait(val)
+					if(wait.late || late){
+						wait(undefined, resolves[key]) // resolve late
+					}else
+						wait(undefined, val)
 				}
 			}, 0)
 			awaits[key]= null
@@ -59,12 +60,12 @@ var stash= module.exports= (function stash(opts){
 		// set
 		resolves[key]= val
 	}
-	Object.defineProperty(set, 'live', {
+	Object.defineProperty(set, 'late', {
 		get: function(){
-			return liveSet
+			return lateSet
 		},
 		set: function(value){
-			liveSet= !!value
+			lateSet= !!value
 		}
 	})
 

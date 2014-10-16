@@ -4,7 +4,7 @@
 	"description": "",
 	"main": "observe-stash.js",
 	"scripts": {
-		"test": "node --harmony test/*js"
+		"test": "node --harmony ./node_modules/.bin/tape test/*js"
 	},
 	"repository": {
 		"type": "git",
