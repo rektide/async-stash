@@ -71,60 +71,33 @@ var stash= module.exports= (function stash(opts){
 
 	/// iterate through keys
 	function *keys(){
-		var val
-		for(var i of resolves){
-			if(val !== undefined)
-				yield val
-			val= resolves[i]
+		for(var i in resolves){
+			yield i
 		}
-		return val
 	}
 
 	/// iterate through all items
 	function *items(){
-		var first= true,
-		  val
-		for(var i in keys()){
-			if(!first){
-				yield val
-			}else{
-				first= false
-			}
-			val= [i, resolves[i]]
+		for(var i of keys()){
+			yield [i, resolves[i]]
 		}
-		return val
 	}
 
 	/// iterate through all values
 	function *values(){
-		var first= true,
-		  val
-		for(var i in keys()){
-			if(!first){
-				yield val
-			}else{
-				first= false
-			}
-			val= resolves[i]
+		for(var i of keys()){
+			yield resolves[i]
 		}
-		return val
 	}
 
 	/// iterate through values looking for specific elements
 	function *filter(predicate){
-		var hasVal= false,
-		  val
-		for(var i in keys()){
-			var temp= resolves[i]
-			if(predicate(temp)){
-				if(hasVal){
-					yield val
-				}
-				val= temp
-				hasVal= true
+		for(var i of keys()){
+			var val= resolves[i]
+			if(predicate(val, i, resolves)){
+				yield val
 			}
 		}
-		return val
 	}
 
 	/// ingest events into the map
@@ -151,6 +124,7 @@ var stash= module.exports= (function stash(opts){
 		set: set,
 		keys: keys,
 		values: values,
+		items: items,
 		filter: filter,
 		handler: handler
 	}
