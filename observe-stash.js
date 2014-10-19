@@ -19,6 +19,8 @@ var stash= module.exports= (function stash(opts){
 	function getter(){
 		var key= argsHash(arguments, 0)
 		return function(done){
+			if(!done)
+				return
 			var resolved= resolves[key]
 			if(resolved){
 				if(slowGet)
