@@ -1,18 +1,18 @@
 var tape= require('tape'),
   stash= require('..')
 
-tape('in order get', function(t){
+tape('in order getter', function(t){
 	var s= stash()
 	s.set('a', 22)
-	s.get('a')(function(err,val){
+	s.getter('a')(function(err,val){
 		t.equal(val, 22)
 		t.end()
 	})
 })
 
-tape('out of order get', function(t){
+tape('out of order getter', function(t){
 	var s= stash()
-	s.get('a')(function(err,val){
+	s.getter('a')(function(err,val){
 		t.equal(val, 23)
 		t.end()
 	})
@@ -21,7 +21,7 @@ tape('out of order get', function(t){
 
 tape('composite key', function(t){
 	var s= stash()
-	s.get('a', 'b', 3)(function(err,val){
+	s.getter('a', 'b', 3)(function(err,val){
 		t.equal(val, 23)
 		t.end()
 	})

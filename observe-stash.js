@@ -10,8 +10,13 @@ var stash= module.exports= (function stash(opts){
 	var awaits= {},
 	  resolves= {}
 
-	/// return a thunk of a get which will immediately happen or when the key is fulfilled
 	function get(){
+		var key= argsHash(arguments, 0)
+		return resolves[key]
+	}
+
+	/// return a thunk of a get which will immediately happen or when the key is fulfilled
+	function getter(){
 		var key= argsHash(arguments, 0)
 		return function(done){
 			var resolved= resolves[key]
@@ -29,7 +34,7 @@ var stash= module.exports= (function stash(opts){
 			}
 		}
 	}
-	Object.defineProperty(get, 'slow', {
+	Object.defineProperty(getter, 'slow', {
 		get: function(){
 			return slowGet
 		},
@@ -121,6 +126,7 @@ var stash= module.exports= (function stash(opts){
 
 	return {
 		get: get,
+		getter: getter,
 		set: set,
 		keys: keys,
 		values: values,
