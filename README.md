@@ -1,3 +1,7 @@
 # Async Stash
 
-Async Stash offfers a `Map` like structure where getters are an asynchronous actions (promises or thunks), even in cases where no corresponding key has been set on the stash.
+Async Stash composes a Thunked-up `Map`++ interface on top of an Object.
+
+* Whereas map only has get and set, Async Stash has getter and setter Thunks and callbacks.
+** Getters are usable even no corresponding key has been set on them.
+* Keys can have multiple indexes
