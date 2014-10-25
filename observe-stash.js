@@ -1,32 +1,34 @@
 'use strict';
 
-var argsHash= require('./args-hash')
-
 /// Create a Map one can .get from before the key exists.
-var stash= module.exports= (function stash(opts){
-	var slowGet= false,
-	  lateSet= false
+function stash(opts){
+	var optSlowGet= opts && opts.slowGet || false,
+	  optsLateSet= opts && opts.lateSet || false,
+	  optArgsHash= opts && opts.argsHash
 
 	var awaits= {},
-	  resolves= {}
+	  underlay= opts && opts.underlay || {}
+
+	function argsHash(args, drop, rest){
+		return (optArgsHash || stash.argsHash)(args, drop, rest)
+	}
+
+	// EXPORTS
 
 	function get(){
-		var key= argsHash(arguments, 0)
-		return resolves[key]
+		var key= module.exports(arguments, 0)
+		return underlay[key]
 	}
 
 	/// return a thunk of a get which will immediately happen or when the key is fulfilled
-	function getter(){
-		var key= argsHash(arguments, 0)
+	/// @zalgo
+	function getterZalgo(key){
 		return function(done){
 			if(!done)
 				return
-			var resolved= resolves[key]
+			var resolved= underlay[key]
 			if(resolved){
-				if(slowGet)
-					setTimeout(function(){done(undefined, resolved)})
-				else
-					done(undefined, resolved)
+				done(undefined, resolved)
 			}else{
 				var wait= awaits[key]
 				if(wait)
@@ -36,12 +38,38 @@ var stash= module.exports= (function stash(opts){
 			}
 		}
 	}
+	/// return a thunk of a get which will happen in the tick after a key is fulfilled
+	function getterLeashed(key){
+		return function(done){
+			if(!done)
+				return
+			var resolved= underlay[key]
+			if(resolved){
+				setTimeout(function(){done(undefined, resolved)})
+			}else{
+				//done.slow= true // set always leashes zalgo
+				var wait= awaits[key]
+				if(wait)
+					wait.push(done)
+				else
+					awaits[key]= [done]
+			}
+		}
+	}
+	/// return a thunk which will resolve the get when available
+	function getter(){
+		var key= argsHash(arguments)
+		if(optSlowGet)
+			return getterLeashed(key)
+		else
+			return getterZalgo(key)
+	}
 	Object.defineProperty(getter, 'slow', {
 		get: function(){
-			return slowGet
+			return optSlowGet
 		},
 		set: function(value){
-			slowGet= value
+			optSlowGet= value
 		}
 	})
 
@@ -50,14 +78,14 @@ var stash= module.exports= (function stash(opts){
 		var key= argsHash(arguments, 1),
 		  val= arguments[arguments.length-1],
 		  waits= awaits[key],
-		  late= lateSet
+		  late= optsLateSet
 		if(waits && waits.length){
 			// remove all waits, and in the future trigger them
 			setTimeout(function(){
 				for(var i= 0; i< waits.length; ++i){
 					var wait= waits[i]
 					if(wait.late || late){
-						wait(undefined, resolves[key]) // resolve late
+						wait(undefined, underlay[key]) // resolve late
 					}else
 						wait(undefined, val)
 				}
@@ -65,20 +93,30 @@ var stash= module.exports= (function stash(opts){
 			awaits[key]= null
 		}
 		// set
-		resolves[key]= val
+		underlay[key]= val
 	}
 	Object.defineProperty(set, 'late', {
 		get: function(){
-			return lateSet
+			return optsLateSet
 		},
 		set: function(value){
-			lateSet= !!value
+			optsLateSet= !!value
 		}
 	})
 
+	/// Provide a Node-style function handler for setting a key
+	function setter(){
+		var key= argsHash(arguments)
+		return function(err, ok){
+			if(err)
+				return
+			set(key, ok)
+		}
+	}
+
 	/// iterate through keys
 	function *keys(){
-		for(var i in resolves){
+		for(var i in underlay){
 			yield i
 		}
 	}
@@ -86,22 +124,22 @@ var stash= module.exports= (function stash(opts){
 	/// iterate through all items
 	function *items(){
 		for(var i of keys()){
-			yield [i, resolves[i]]
+			yield [i, underlay[i]]
 		}
 	}
 
 	/// iterate through all values
 	function *values(){
 		for(var i of keys()){
-			yield resolves[i]
+			yield underlay[i]
 		}
 	}
 
 	/// iterate through values looking for specific elements
 	function *filter(predicate){
 		for(var i of keys()){
-			var val= resolves[i]
-			if(predicate(val, i, resolves)){
+			var val= underlay[i]
+			if(predicate(val, i, underlay)){
 				yield val
 			}
 		}
@@ -130,10 +168,14 @@ var stash= module.exports= (function stash(opts){
 		get: get,
 		getter: getter,
 		set: set,
+		setter: setter,
 		keys: keys,
 		values: values,
 		items: items,
 		filter: filter,
 		handler: handler
 	}
-})
+}
+
+module.exports= stash
+module.exports.argsHash = require('./args-hash')
