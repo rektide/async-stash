@@ -4,7 +4,8 @@
 function stash(opts){
 	var optSlowGet= opts && opts.slowGet || false,
 	  optsLateSet= opts && opts.lateSet || false,
-	  optArgsHash= opts && opts.argsHash
+	  optArgsHash= opts && opts.argsHash,
+	  isMap= opts && opts.underlay && opts.underlay.get && opts.underlay.set
 
 	var awaits= {},
 	  underlay= opts && opts.underlay || {}
@@ -15,9 +16,26 @@ function stash(opts){
 
 	// EXPORTS
 
+	var _get, _set
+	if(isMap){
+		_get= function(k){
+			return underlay.get(k)
+		}
+		_set= function(k, v){
+			underlay.set(k,v)
+		}
+	}else{
+		_get= function(k){
+			return underlay[k]
+		}
+		_set= function(k, v){
+			underlay[k]= v
+		}
+	}
+
 	function get(){
-		var key= module.exports(arguments, 0)
-		return underlay[key]
+		var key= argsHash(arguments)
+		return _get(key)
 	}
 
 	/// return a thunk of a get which will immediately happen or when the key is fulfilled
@@ -26,7 +44,7 @@ function stash(opts){
 		return function(done){
 			if(!done)
 				return
-			var resolved= underlay[key]
+			var resolved= _get(key)
 			if(resolved){
 				done(undefined, resolved)
 			}else{
@@ -43,7 +61,7 @@ function stash(opts){
 		return function(done){
 			if(!done)
 				return
-			var resolved= underlay[key]
+			var resolved= _get(key)
 			if(resolved){
 				setTimeout(function(){done(undefined, resolved)})
 			}else{
@@ -85,7 +103,7 @@ function stash(opts){
 				for(var i= 0; i< waits.length; ++i){
 					var wait= waits[i]
 					if(wait.late || late){
-						wait(undefined, underlay[key]) // resolve late
+						wait(undefined, _get(key)) // resolve late
 					}else
 						wait(undefined, val)
 				}
@@ -93,7 +111,7 @@ function stash(opts){
 			awaits[key]= null
 		}
 		// set
-		underlay[key]= val
+		_set(key, val)
 	}
 	Object.defineProperty(set, 'late', {
 		get: function(){
@@ -116,6 +134,9 @@ function stash(opts){
 
 	/// iterate through keys
 	function *keys(){
+		if(isMap)
+			return underlay.keys()
+
 		for(var i in underlay){
 			yield i
 		}
@@ -123,6 +144,9 @@ function stash(opts){
 
 	/// iterate through all items
 	function *items(){
+		if(isMap)
+			return underlay.items()
+
 		for(var i of keys()){
 			yield [i, underlay[i]]
 		}
@@ -130,6 +154,9 @@ function stash(opts){
 
 	/// iterate through all values
 	function *values(){
+		if(isMap)
+			return underlay.values()
+
 		for(var i of keys()){
 			yield underlay[i]
 		}
@@ -138,7 +165,7 @@ function stash(opts){
 	/// iterate through values looking for specific elements
 	function *filter(predicate){
 		for(var i of keys()){
-			var val= underlay[i]
+			var val= isMap ? underlay.get(i) : underlay[i]
 			if(predicate(val, i, underlay)){
 				yield val
 			}
@@ -157,6 +184,7 @@ function stash(opts){
 				return
 			// lookup the key for an event in `indexer`
 			var key= indexer(e, name, orig)
+			key= argsHash(key)
 			// store event
 			if(key)
 				// set
